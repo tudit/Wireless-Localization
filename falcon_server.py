@@ -2,6 +2,7 @@ import falcon;
 import pymongo;
 import json;
 from sklearn.naive_bayes import GaussianNB;
+from sklearn import mixture;
 from ast import literal_eval as make_tuple;
 import math;
 
@@ -16,9 +17,19 @@ class LocationData(object):
 			print("***Both vectors are not of equal length!!***");
 		square_differences = [(v1[i] - v2[i]) ** 2 for i in range(len(v1))];
 		return math.sqrt(sum(square_differences));
+	
+	def predict_GMM(self, training_data, test_data, ncomp, covar_type):
+		print("Predicting using GMM.....");
+		predictor = mixture.GaussianMixture(n_components = ncomp, covariance_type = covar_type);
+		gmm = predictor.fit(training_data);
+		pred_labels = gmm.predict(test_data);
+		print(pred_labels)
+		print(gmm.means_)
+		print(gmm.covariances_);
+		return pred_labels.tolist(); #since it returns np array which is no json serializable
 
 	def predict_gaussian_naive_bayes(self, training_data, training_labels, test_data, test_labels, errors):
-		print("Predicting.....");
+		print("Predicting using GNB.....");
 		predictor = GaussianNB();
 		
 		#convert training labels from integer tuples to strings
@@ -51,9 +62,11 @@ class LocationData(object):
 		training_labels = data["labels"];
 		errors = [];
 		print(len(training_data),len(training_labels));
-		self.predict_gaussian_naive_bayes(training_data, training_labels, test_data, test_labels, errors);
-		avg_error = float(sum(errors))/sum(errors);
-		response = {"avg_error" : avg_error};
+		#self.predict_gaussian_naive_bayes(training_data, training_labels, test_data, test_labels, errors);
+		pred_vals = self.predict_GMM(training_data, test_data, 9, 'full');
+		#avg_error = float(sum(errors))/sum(errors);
+		#response = {"avg_error" : avg_error};
+		response = {"predictions" : pred_vals};
 		res.body = json.dumps(response);
 		res.status = falcon.HTTP_200;
 	
@@ -74,9 +87,11 @@ class LocationData(object):
 			training_data = db_data["feature_vectors"];
 			training_labels = db_data["labels"];
 			
-			predictions = self.predict_gaussian_naive_bayes(training_data, training_labels, test_data, test_labels, errors);
-			avg_error = float(sum(errors))/len(errors);
-			response = {"avg_error" : avg_error, "predictions" : predictions};
+			#predictions = self.predict_gaussian_naive_bayes(training_data, training_labels, test_data, test_labels, errors);
+			predictions = self.predict_GMM(training_data, test_data, 9, 'full');
+			#avg_error = float(sum(errors))/len(errors);
+			#response = {"avg_error" : avg_error, "predictions" : predictions};
+			response = {"predictions" : predictions};
 			res.body = json.dumps(response);
 			res.status = falcon.HTTP_200;				
 		

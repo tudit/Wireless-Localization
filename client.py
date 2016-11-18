@@ -1,6 +1,5 @@
 import sys;
 import math;
-from sklearn.naive_bayes import GaussianNB;
 from sklearn.metrics import accuracy_score;
 import random;
 from ast import literal_eval as make_tuple;
@@ -102,7 +101,7 @@ def generate_power_at_d(d, K, SD, seed):
 	return pr;
 
 def predict_gaussian_naive_bayes(training_data, training_labels, test_data, test_labels, errors):
-	print("Predicting.....");
+	print("Predicting GNB.....");
 	predictor = GaussianNB();
 	
 	#convert training labels from integer tuples to strings
@@ -115,8 +114,7 @@ def predict_gaussian_naive_bayes(training_data, training_labels, test_data, test
 	#error = accuracy_score(pred_labels, test_labels_str, normalize = False);
 	for i in range(len(pred_labels)):
 		errors.append(eucledian_distance(pred_labels[i], test_labels[i]));
-		
-	
+			
 def eucledian_distance(v1,v2):
 	if len(v1) != len(v2):
 		print("***Both vectors are not of equal length!!***");
@@ -136,13 +134,11 @@ def simulate_data(K, T, SD):
 	
 	for i in range(10):
 		grid_indices, transmitter_locs = generate_transmitter_locations(K, T, i);
-		#print(transmitter_locs, grid_indices);
 
 		grid_data, labels, feature_vectors = generate_rem(K, T, SD, transmitter_locs, i);
 
 		training_data_i, test_data_i, training_labels_i, test_labels_i = split_into_training_test_data(feature_vectors, labels, K, i);
-		#print(training_data, test_data, training_labels, test_labels);
-		#predict_gaussian_naive_bayes(training_data, training_labels, test_data, test_labels, errors);
+
 		training_data.extend(training_data_i);
 		training_labels.extend(training_labels_i);
 		test_data.extend(test_data_i);
