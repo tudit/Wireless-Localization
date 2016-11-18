@@ -2,7 +2,7 @@
 To Run Falcon REST Server:
 **************************
 
-*Follow these steps to setup gunicorn and falcon rest code:
+*Follow these steps to setup gunicorn and falcon rest code:<br/>
 	https://falcon.readthedocs.io/en/stable/user/tutorial.html
 *$ gunicorn falcon_server
 
