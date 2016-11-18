@@ -11,7 +11,7 @@ To run MongoDB:
 ***************
 
 *Starting a mongoDB server:<br/>
-$mongod
+$mongod<br/>
 *Dropping DB:<br/>
 $db.dropDatabase()
 
