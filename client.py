@@ -1,13 +1,10 @@
 import sys;
-import math;
 from sklearn.metrics import accuracy_score;
-import random;
 from ast import literal_eval as make_tuple;
 import requests;
 import json;
-
-POWER_T = 10 * math.log10(16 * 0.001);# Tramistted power mW to dBm 
-ALPHA = 2.5;
+import utils;
+import random;
 
 class CellData:
 	def __init__(self ,centroid, feature_vectors):
@@ -24,7 +21,7 @@ def generate_rem(K, T, SD, transmitter_locs, seed):
 	for i in range(0, 200, K):
 		row_data = [];	
 		for j in range(0, 200, K):
-			centroid = ((i + K)/2, (j + K)/2); #centroid is a tuple (x,y)
+			centroid = ((i + K) / 2, (j + K) / 2); #centroid is a tuple (x,y)
 			#generate feature vectors(20) at the centriod and append to features vector list
 			feature_vectors_at_centroid = generate_feature_vectors(K, T, SD, centroid, transmitter_locs, feature_vectors, labels, seed);
 			cell_data = CellData(centroid, feature_vectors_at_centroid);	
@@ -33,29 +30,6 @@ def generate_rem(K, T, SD, transmitter_locs, seed):
 	
 	return grid_data, labels, feature_vectors;	
 
-
-
-def generate_transmitter_locations(K, T, seed):
-	print("Generating Transmitter Locations.....");
-	#random.seed(seed);
-	cells_per_row = int(200 / K);
-	cells_per_col = cells_per_row;
-
-	# generating random grid indices
-	grid_row = random.sample(range(cells_per_row), T); 
-	grid_col = random.sample(range(cells_per_col), T);
-	grid_loc_transmitters = [(grid_row[i], grid_col[i]) for i in range(len(grid_row))];
-
-	#computing actual x, y cordinates
-	centroid_x = [get_centroid(row_index, K) for row_index in grid_row ]; 
-	centroid_y = [get_centroid(col_index, K) for col_index in grid_col ];
-	transmitters = [(centroid_x[i], centroid_y[i]) for i in range(len(centroid_x))];
-
-	return grid_loc_transmitters, transmitters;
-
-#get actual X and Y co-ordinates given grid indices
-def get_centroid(grid_index, K):
-	return ((grid_index * K) + (K / 2.0));
 
 #Feature vectors are <RSSI1,RSSI2,RSSI3...RSSIk> for transmitters <T1,T2,T3...Tk>
 
@@ -77,14 +51,14 @@ def split_into_training_test_data(data, labels, K, seed):
 
 def generate_feature_vectors(K, T, SD, centroid, transmitter_locs, feature_vector, labels, seed):
 	feature_vectors_at_centroid = [];
-	for i in range(20):	
+	for i in range(200):	
 		features = [];
 		for j in range(T):
-			d = eucledian_distance(centroid, transmitter_locs[j]);
+			d = utils.eucledian_distance(centroid, transmitter_locs[j]);
 			if d == 0:
 				#centroid coincides with one of the transmitter, ignore that centroid
 				return feature_vectors_at_centroid;
-			pl_d = generate_power_at_d(d, K, SD, seed);
+			pl_d = utils.generate_power_at_d(d, K, SD, seed);
 			features.append(pl_d);
 	
 		feature_vectors_at_centroid.append(features);
@@ -93,12 +67,6 @@ def generate_feature_vectors(K, T, SD, centroid, transmitter_locs, feature_vecto
 	
 	return feature_vectors_at_centroid;
 
-def generate_power_at_d(d, K, SD, seed):
-	#random.seed(seed);
-	noise = random.gauss(0, SD);
-	pl = 10 * ALPHA * math.log10(d) + noise;
-	pr = POWER_T - pl;		
-	return pr;
 
 def predict_gaussian_naive_bayes(training_data, training_labels, test_data, test_labels, errors):
 	print("Predicting GNB.....");
@@ -113,13 +81,7 @@ def predict_gaussian_naive_bayes(training_data, training_labels, test_data, test
 	
 	#error = accuracy_score(pred_labels, test_labels_str, normalize = False);
 	for i in range(len(pred_labels)):
-		errors.append(eucledian_distance(pred_labels[i], test_labels[i]));
-			
-def eucledian_distance(v1,v2):
-	if len(v1) != len(v2):
-		print("***Both vectors are not of equal length!!***");
-	square_differences = [(v1[i] - v2[i]) ** 2 for i in range(len(v1))];
-	return math.sqrt(sum(square_differences));
+		errors.append(utils.eucledian_distance(pred_labels[i], test_labels[i]));
 
 
 #N transmitters
@@ -132,17 +94,10 @@ def simulate_data(K, T, SD):
 	test_data = [];
 	test_labels = [];
 	
-	for i in range(10):
-		grid_indices, transmitter_locs = generate_transmitter_locations(K, T, i);
+	grid_indices, transmitter_locs = utils.generate_transmitter_locations(K, T, utils.SEED);
+	grid_data, labels, feature_vectors = generate_rem(K, T, SD, transmitter_locs, utils.SEED);
+	training_data, test_data, training_labels, test_labels = split_into_training_test_data(feature_vectors, labels, K, utils.SEED);
 
-		grid_data, labels, feature_vectors = generate_rem(K, T, SD, transmitter_locs, i);
-
-		training_data_i, test_data_i, training_labels_i, test_labels_i = split_into_training_test_data(feature_vectors, labels, K, i);
-
-		training_data.extend(training_data_i);
-		training_labels.extend(training_labels_i);
-		test_data.extend(test_data_i);
-		test_labels.extend(test_labels_i);	
 	return training_data, training_labels, test_data, test_labels;
 
 	
@@ -158,10 +113,10 @@ if __name__ == '__main__':
 	print(len(training_data), len(training_labels), len(test_data), len(test_labels));	
 	
 	url = "http://localhost:8000/location";
-	train_payload = {"predict" : 0, "_id" : 1, "feature_vectors" : training_data, "labels" : training_labels};
+	train_payload = {"feature_vectors" : training_data, "labels" : training_labels};
 	train_res = requests.post(url, data = json.dumps(train_payload));
 	
-	test_payload = {"predict" : 1, "_id" : 1, "feature_vectors" : test_data,  "labels" : test_labels};
+	test_payload = {"feature_vectors" : test_data,  "labels" : test_labels};
 	test_res = requests.post(url, data = json.dumps(test_payload));
 	
 	print(train_res.text, test_res.text);
