@@ -18,9 +18,9 @@ def generate_rem(K, T, SD, transmitter_locs, seed):
 	feature_vectors = []; # contains consolidated data
 	labels = [];
 	
-	for i in range(0, 200, K):
+	for i in range(0, utils.WIDTH, K):
 		row_data = [];	
-		for j in range(0, 200, K):
+		for j in range(0, utils.WIDTH, K):
 			centroid = ((i + K) / 2, (j + K) / 2); #centroid is a tuple (x,y)
 			#generate feature vectors(20) at the centriod and append to features vector list
 			feature_vectors_at_centroid = generate_feature_vectors(K, T, SD, centroid, transmitter_locs, feature_vectors, labels, seed);
@@ -44,14 +44,14 @@ def split_into_training_test_data(data, labels, K, seed):
 		data_shuffled.append(data[i]);
 		labels_shuffled.append(labels[i]);
 
-	test_size = int(0.1 * ((int(200 / K)) ** 2));
+	test_size = int(0.1 * ((int(utils.WIDTH / K)) ** 2));
 	train_size = len(data) - test_size;
 
 	return data_shuffled[:train_size], data_shuffled[train_size:], labels_shuffled[:train_size], labels_shuffled[train_size:];
 
 def generate_feature_vectors(K, T, SD, centroid, transmitter_locs, feature_vector, labels, seed):
 	feature_vectors_at_centroid = [];
-	for i in range(200):	
+	for i in range(utils.FEATURES_PER_CELL):	
 		features = [];
 		for j in range(T):
 			d = utils.eucledian_distance(centroid, transmitter_locs[j]);
@@ -104,7 +104,7 @@ def simulate_data(K, T, SD):
 if __name__ == '__main__':
 	
 	K = int(sys.argv[1]); #K is grid resolution
-	if K > 200:
+	if K > utils.WIDTH:
 		print("K should be less than 200" );
 
 	T = int(sys.argv[2]); #N is number of cell towers

@@ -4,11 +4,13 @@ import random;
 POWER_T = 10 * math.log10(16 * 0.001);# Transmitted power mW to dBm 
 ALPHA = 2.5;
 SEED = 5;
+WIDTH = 200;
+FEATURES_PER_CELL = 200;
 
 #get actual X and Y co-ordinates given grid indices
 def get_centroid(grid_index, K):
 	return ((grid_index * K) + (K / 2));
-	
+
 def generate_transmitter_locations(K, T, seed):
 	print("Generating Transmitter Locations.....");
 	random.seed(seed);

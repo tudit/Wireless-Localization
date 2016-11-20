@@ -12,15 +12,16 @@ api = application = falcon.API();
 
 K = 40;
 T = 5;
-TRNG_SIZE = 1000;
+num_cells = int(utils.WIDTH / K) ** 2;
+TRNG_SIZE = int(0.8 * num_cells * utils.FEATURES_PER_CELL);
 BATCH_SIZE = 100;
 
 def get_locations():
 	locations = dict();
-	cols  = int(200 / K);
+	cols  = int(utils.WIDTH / K);
 	loc_count = 0;
-	for i in range(0, 200, K):
-		for j in range(0, 200, K):
+	for i in range(0, utils.WIDTH, K):
+		for j in range(0, utils.WIDTH, K):
 			centroid = ((i + K) / 2, (j + K) / 2);
 			locations[loc_count] = centroid;
 			loc_count += 1; 	
@@ -48,7 +49,7 @@ class LocationData(object):
 	db = client.test;
 	count_trng = 0;
 	locations = get_locations();
-	predictor = mixture.GaussianMixture(n_components = int(200 / K) * int(200 / K), covariance_type = 'full',\
+	predictor = mixture.GaussianMixture(n_components = int(utils.WIDTH / K) * int(utils.WIDTH / K), covariance_type = 'full',\
 				 warm_start = True, means_init = get_init_means());
 	gmm = None;
 
@@ -114,8 +115,8 @@ class LocationData(object):
 		pred_classes = [];
 		pred_locs = [];
 		
-		for start_index in range(0, len(test_data), 100):
-			end_index = start_index + 100;
+		for start_index in range(0, len(test_data), BATCH_SIZE):
+			end_index = start_index + BATCH_SIZE;
 			test_batch = test_data[start_index : end_index];
 			pred_classes.extend(self.gmm.predict(test_batch).tolist());
 	
@@ -137,7 +138,7 @@ class LocationData(object):
 		
 		end_trng = min(tr_data_count, TRNG_SIZE - self.count_trng);
 		for start_index in range(0, end_trng, BATCH_SIZE):
-			end_index = start_index + 100;
+			end_index = start_index + BATCH_SIZE;
 			tr_batch = tr_data[start_index : end_index];
 			#tr_labels = data["labels"];
 			self.gmm = self.predictor.fit(tr_batch);
