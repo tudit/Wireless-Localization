@@ -5,6 +5,8 @@ from sklearn.naive_bayes import GaussianNB;
 from sklearn import mixture;
 from ast import literal_eval as make_tuple;
 import utils;
+import os;
+import pickle;
 
 api = application = falcon.API();
 
@@ -142,7 +144,11 @@ class LocationData(object):
 			#TODO: Store into DB
 			#store_features_in_db(1, tr_batch, deepcopy.copy(self.gmm));
 			self.count_trng += len(tr_batch);		
-	
+		
+		with open("gmm.pkl", "wb") as fid:
+				trng_md = {"gmm" : self.gmm, "trng_count" : self.count_trng}
+				pickle.dump(trng_md, fid);
+
 	def on_post(self, req, res):
 		raw_json = req.stream.read();
 		data = json.loads(str(raw_json, encoding = "utf-8"));
@@ -154,9 +160,15 @@ class LocationData(object):
 		#if there is training data in db and training count is 0 (server restarted)
 		#if gmm != None and self.count_trng == 0:
 		# self.gmm = gmm;
-		
+		if self.count_trng == 0 and os.path.isfile('gmm.pkl'):
+			with open("gmm.pkl", "rb") as fid:
+				trng_md = pickle.load(fid);
+				self.gmm = trng_md["gmm"];
+				self.count_trng = trng_md["trng_count"];
+
 		#if training size hasn't been reached, model requires more training
 		if self.count_trng < TRNG_SIZE:
+			print("Training");
 			#train in batches
 			tr_data = data["feature_vectors"];
 			tr_labels = data["labels"];
@@ -167,9 +179,7 @@ class LocationData(object):
 			##has to be used for prediction
 			if len(tr_data) > TRNG_SIZE - self.count_trng:
 				start_index = TRNG_SIZE - self.count_trng;
-				self.predict(tr_data[start_index:], tr_labels[start_index:], res);
-
-			print("Trained");			
+				self.predict(tr_data[start_index:], tr_labels[start_index:], res);			
 		
 		else:
 			# model has been sufficiently trained, now we can start prediction
