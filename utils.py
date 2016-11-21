@@ -1,9 +1,16 @@
 import math;
 import random;
 
+SEED = 5;
+
+#Path loss parameters
 POWER_T = 10 * math.log10(16 * 0.001);# Transmitted power mW to dBm 
 ALPHA = 2.5;
-SEED = 5;
+
+# configuration parameters
+K = 40;
+T = 5;
+SD = 2;
 WIDTH = 200;
 FEATURES_PER_CELL = 200;
 
@@ -14,7 +21,7 @@ def get_centroid(grid_index, K):
 def generate_transmitter_locations(K, T, seed):
 	print("Generating Transmitter Locations.....");
 	random.seed(seed);
-	cells_per_row = int(200 / K);
+	cells_per_row = int(WIDTH / K);
 	cells_per_col = cells_per_row;
 
 	# generating random grid indices

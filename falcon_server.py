@@ -10,35 +10,33 @@ import pickle;
 
 api = application = falcon.API();
 
-K = 40;
-T = 5;
-num_cells = int(utils.WIDTH / K) ** 2;
+num_cells = int(utils.WIDTH / utils.K) ** 2;
 TRNG_SIZE = int(0.8 * num_cells * utils.FEATURES_PER_CELL);
 BATCH_SIZE = 100;
 
 def get_locations():
 	locations = dict();
-	cols  = int(utils.WIDTH / K);
+	cols  = int(utils.WIDTH / utils.K);
 	loc_count = 0;
-	for i in range(0, utils.WIDTH, K):
-		for j in range(0, utils.WIDTH, K):
-			centroid = ((i + K) / 2, (j + K) / 2);
+	for i in range(0, utils.WIDTH, utils.K):
+		for j in range(0, utils.WIDTH, utils.K):
+			centroid = ((i + utils.K) / 2, (j + utils.K) / 2);
 			locations[loc_count] = centroid;
 			loc_count += 1; 	
 	return locations;
 
 def get_init_means():
 	mean_init = [];
-	grid_indices, transmitter_locs = utils.generate_transmitter_locations(K, T, utils.SEED);
+	grid_indices, transmitter_locs = utils.generate_transmitter_locations(utils.K, utils.T, utils.SEED);
 	centroids = get_locations();
 	for i in range(len(centroids)):
 		mean_cell = [];
-		for j in range(T):
+		for j in range(utils.T):
 			d = utils.eucledian_distance(transmitter_locs[j], centroids[i]);
 			if d == 0:
 				mean_cell.append(utils.POWER_T);
 			else:	 
-				mean_cell.append(utils.generate_power_at_d(d, K, 0, utils.SEED));
+				mean_cell.append(utils.generate_power_at_d(d, utils.K, 0, utils.SEED));
 		
 		mean_init.append(mean_cell);
 	print(len(mean_init));
@@ -49,7 +47,7 @@ class LocationData(object):
 	db = client.test;
 	count_trng = 0;
 	locations = get_locations();
-	predictor = mixture.GaussianMixture(n_components = int(utils.WIDTH / K) * int(utils.WIDTH / K), covariance_type = 'full',\
+	predictor = mixture.GaussianMixture(n_components = int(utils.WIDTH / utils.K) * int(utils.WIDTH / utils.K), covariance_type = 'full',\
 				 warm_start = True, means_init = get_init_means());
 	gmm = None;
 

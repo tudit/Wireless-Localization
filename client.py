@@ -103,13 +103,10 @@ def simulate_data(K, T, SD):
 	
 if __name__ == '__main__':
 	
-	K = int(sys.argv[1]); #K is grid resolution
-	if K > utils.WIDTH:
+	if utils.K > utils.WIDTH:
 		print("K should be less than 200" );
 
-	T = int(sys.argv[2]); #N is number of cell towers
-	SD = float(sys.argv[3]) #SD is shadowing variance
-	training_data, training_labels, test_data, test_labels = simulate_data(K, T, SD);
+	training_data, training_labels, test_data, test_labels = simulate_data(utils.K, utils.T, utils.SD);
 	print(len(training_data), len(training_labels), len(test_data), len(test_labels));	
 	
 	url = "http://localhost:8000/location";
