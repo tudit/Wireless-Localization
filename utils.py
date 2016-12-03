@@ -8,10 +8,12 @@ POWER_T = 10 * math.log10(16 * 0.001);# Transmitted power mW to dBm
 ALPHA = 2.5;
 
 # configuration parameters
-K = 40;
+K = 50;
 T = 5;
 SD = 2;
-WIDTH = 200;
+WIDTH = 1000;
+BLOCKS = 5;
+WIDTH_PER_BLOCK = int(WIDTH / BLOCKS);
 FEATURES_PER_CELL = 200;
 
 #get actual X and Y co-ordinates given grid indices
