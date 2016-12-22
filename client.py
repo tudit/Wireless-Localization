@@ -103,6 +103,7 @@ if __name__ == '__main__':
 	if utils.K > utils.WIDTH:
 		print("K should be less than 200" );
 
+	print("Number of transmitters: %d" %(utils.T));	
 	training_data, training_labels, test_data, test_labels = simulate_data(utils.K, utils.T, utils.SD);
 	print(len(training_data), len(training_labels), len(test_data), len(test_labels));	
 	

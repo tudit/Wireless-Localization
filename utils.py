@@ -1,5 +1,6 @@
 import math;
 import random;
+import numpy as np;
 
 SEED = 5;
 
@@ -9,11 +10,12 @@ ALPHA = 2.5;
 
 # configuration parameters
 K = 50;
-T = 5;
+T = 25;
 SD = 2;
 WIDTH = 1000;
 BLOCKS = 5;
 WIDTH_PER_BLOCK = int(WIDTH / BLOCKS);
+CELLS_PER_BLOCK = int(WIDTH / (K * BLOCKS))
 FEATURES_PER_CELL = 200;
 
 #get actual X and Y co-ordinates given grid indices
@@ -27,8 +29,11 @@ def generate_transmitter_locations(K, T, seed):
 	cells_per_col = cells_per_row;
 
 	# generating random grid indices
-	grid_row = random.sample(range(cells_per_row), T); 
-	grid_col = random.sample(range(cells_per_col), T);
+	grid_cells = random.sample(range(cells_per_row ** 2), T); 
+	grid_cells = np.array(grid_cells);
+	grid_row = np.array(grid_cells / cells_per_row).astype(int);
+	grid_col = grid_cells - grid_row * cells_per_col;
+	#grid_col = random.sample(range(cells_per_col), T);
 	grid_loc_transmitters = [(grid_row[i], grid_col[i]) for i in range(len(grid_row))];
 
 	#computing actual x, y cordinates
@@ -37,6 +42,7 @@ def generate_transmitter_locations(K, T, seed):
 	transmitters = [(centroid_x[i], centroid_y[i]) for i in range(len(centroid_x))];
 
 	return grid_loc_transmitters, transmitters;
+
 
 def eucledian_distance(v1,v2):
 	if len(v1) != len(v2):
@@ -51,4 +57,9 @@ def generate_power_at_d(d, K, SD, seed):
 	pr = POWER_T - pl;		
 	return pr;
 
+def compute_distance_from_rssi(pr):
+	#assuming no noise
+	pl = POWER_T - pr;
+	d = 10 ** (pl / (10 * ALPHA));
+	return d;
 	

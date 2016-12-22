@@ -8,13 +8,26 @@ import utils;
 import os;
 import pickle;
 import numpy as np;
+import localization as lz;
 
 api = application = falcon.API();
 
+
 num_cells = int(utils.WIDTH_PER_BLOCK / utils.K) ** 2;
-TRNG_SIZE = int(0.8 * num_cells * utils.FEATURES_PER_CELL);
+#TRNG_SIZE = int(0.8 * num_cells * utils.FEATURES_PER_CELL);
+TRNG_SIZE = 500;
 BATCH_SIZE = TRNG_SIZE;
-transmitter_grid_indices, transmitter_locs = utils.generate_transmitter_locations(utils.K, utils.T, utils.SEED);
+transmitter_block_indices, transmitter_locs = utils.generate_transmitter_locations(int(utils.WIDTH / utils.BLOCKS), utils.T, utils.SEED);
+
+def get_grid_indices(blocks):
+	grid_indices = [];
+	for block in blocks:
+		grid_index = [int((i + 0.5) * utils.CELLS_PER_BLOCK) for i in block];
+		grid_indices.append(grid_index);
+	return grid_indices;	
+
+transmitter_grid_indices = get_grid_indices(transmitter_block_indices);
+print(transmitter_grid_indices, transmitter_locs);
 
 def get_locations(x_block, y_block):
 	x_offset = x_block * utils.WIDTH_PER_BLOCK;
@@ -78,7 +91,7 @@ class LocationData(object):
 		
 	
 	def predict(self, block, test_data, test_labels, res, errors, pred_locs):
-		print("Testing");
+		print("Testing (Block : %d, Size: %d)" %(block, len(test_data)));
 		pred_classes = [];
 
 		for start_index in range(0, len(test_data), BATCH_SIZE):
@@ -92,6 +105,7 @@ class LocationData(object):
 			errors.append(utils.eucledian_distance(loc, test_labels[i]));
 	
 	def train(self, block, tr_data):
+		print("Training (Block: %d, Size: %d)" %(block, len(tr_data)));
 		tr_data_count = len(tr_data);
 		
 		#Already trained count_trng data
@@ -113,11 +127,56 @@ class LocationData(object):
 				pickle.dump(trng_md, fid);
 
 	def get_block(self, feature_vector):
+		return self.heuristic2(feature_vector);
+
+	def heuristic1(self, feature_vector):
 		max_rss_i = feature_vector.index(max(feature_vector));
 		grid_x_y = transmitter_grid_indices[max_rss_i];
-		block_x_y = [int(i / utils.BLOCKS) for i in grid_x_y];
+		print("Grid", grid_x_y);
+		block_x_y = [int(i / utils.CELLS_PER_BLOCK) for i in grid_x_y];
+		print("Block", block_x_y);
 		return block_x_y;
 
+	def heuristic2(self, feature_vector):
+		print("Feature Vector", feature_vector);
+		proj = lz.Project(mode = '2D', solver = 'LSE'); #mode = '2D' and solver = LSE
+		rssi = sorted(zip(feature_vector), reverse = True)[:3];
+		print("Top 3", rssi);
+
+		rssi1_i = feature_vector.index(rssi[0][0]);
+		rssi2_i = feature_vector.index(rssi[1][0]);
+		rssi3_i = feature_vector.index(rssi[2][0]);
+		trans_loc1 = transmitter_locs[rssi1_i];
+		trans_loc2 = transmitter_locs[rssi2_i];
+		trans_loc3 = transmitter_locs[rssi3_i];
+		proj.add_anchor('rssi1', trans_loc1);
+		proj.add_anchor('rssi2', trans_loc2);
+		proj.add_anchor('rssi3', trans_loc3);
+		
+		target, label = proj.add_target();
+		d1 = utils.compute_distance_from_rssi(rssi[0][0]);
+		target.add_measure('rssi1', d1);
+		d2 = utils.compute_distance_from_rssi(rssi[1][0]);
+		target.add_measure('rssi2', d2);
+		d3 = utils.compute_distance_from_rssi(rssi[2][0]);
+		target.add_measure('rssi3', d3);
+		
+		proj.solve();
+		x, y = (target.loc.x, target.loc.y);
+		x = abs(x);
+		y = abs(y);
+		# centroid coordinates are never greater than 1000
+		if x >= 1000:
+			x = 999;
+		if y >= 1000:
+			y = 999;
+		print("x", x, "y", y);
+		grid_x_y = [int(i / utils.K) for i in (x, y)];
+		print("Grid: ", grid_x_y);
+		block_x_y = [int(i / utils.CELLS_PER_BLOCK) for i in grid_x_y];
+		print("Block: ", block_x_y);
+		return block_x_y;
+	
 	def on_post(self, req, res):
 		raw_json = req.stream.read();
 		raw_data = json.loads(str(raw_json, encoding = "utf-8"));
@@ -133,12 +192,14 @@ class LocationData(object):
 				block_feature_vectors[i * utils.BLOCKS + j]	= [];
 				block_labels[i * utils.BLOCKS + j]	= [];
 
+		count = 0;		
 		for i, feature_vector in enumerate(feature_vectors):
 			x, y = self.get_block(feature_vector);
+			print("Block: ", x * utils.BLOCKS + y);
 			block_feature_vectors[x * utils.BLOCKS + y].append(feature_vector);
 			block_labels[x * utils.BLOCKS + y].append(labels[i]);
-
-
+			count += 1;
+		print(count);	
 		#TODO: get data from DB and initialize in case of a failure
 		#db_data = get_features_from_db(1);
 		#gmm = db_data["gmm"];
@@ -148,11 +209,13 @@ class LocationData(object):
 		# self.gmm = gmm;
 		errors = [];
 		pred_locs = [];
+		print("Training Size per Block: %d" %(TRNG_SIZE));
 		for block in block_feature_vectors:
-			print("Block:",block);
-			
-			#No features to train?
-			if len(block_feature_vectors[block]) == 0:
+			print("Block:", block, "Block Size:", len(block_feature_vectors[block]));
+			#Very few features to train?
+			if self.counts_trng[block] < TRNG_SIZE and\
+				len(block_feature_vectors[block]) < self.n_classes:	
+				print("skipping block");
 				continue;
 			
 			pkl_file = "gmm.pkl" + str(block);
@@ -164,7 +227,6 @@ class LocationData(object):
 
 			#if training size hasn't been reached, model requires more training
 			if self.counts_trng[block] < TRNG_SIZE:
-				print("Training");
 				#train in batches
 				tr_data = block_feature_vectors[block];
 				tr_labels = block_labels[block];
@@ -173,8 +235,8 @@ class LocationData(object):
 				# TRNG_SIZE - self.count_trng is how more training is required
 				# if tr_data has more data than required for training, the difference 
 				##has to be used for prediction
-				if len(tr_data) > TRNG_SIZE - self.counts_trng[block]:
-					start_index = TRNG_SIZE - self.counts_trng[block];
+				if len(tr_data) > TRNG_SIZE:
+					start_index = len(tr_data) - TRNG_SIZE;
 					self.predict(block, tr_data[start_index:], tr_labels[start_index:], res, errors, pred_locs);			
 			
 			else:
@@ -185,11 +247,9 @@ class LocationData(object):
 		
 		#if any predictions did happen
 		if len(pred_locs) > 0:
-			if len(errors) > 0:
-				avg_error = float(sum(errors))/len(errors);
-			else:
-				avg_error = 0;
-			response = {"predictions" : pred_locs, "avg_error" : avg_error};
+			avg_error = float(sum(errors))/len(errors);
+			#response = {"predictions" : pred_locs, "avg_error" : avg_error, "errors" : errors};
+			response = {"avg_error" : avg_error, "Test Size" : len(errors)};
 			res.body = json.dumps(response);
 		res.status = falcon.HTTP_200;
 
