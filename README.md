@@ -1,22 +1,23 @@
 **************************
-To Run Falcon REST Server:
-**************************
+To Run Falcon REST Server:<br/>
 
 *Follow these steps to setup gunicorn and falcon rest code:<br/>
-	https://falcon.readthedocs.io/en/stable/user/tutorial.html<br/>
-*$ gunicorn falcon_server
+https://falcon.readthedocs.io/en/stable/user/tutorial.html<br/>
+*$ gunicorn falcon_server<br/>
 
-***************
-To run MongoDB:
-***************
+Setup:<br/>
+*Follow these steps to setup gunicorn and falcon rest code:<br/>
+    https://falcon.readthedocs.io/en/stable/user/tutorial.html<br/>
 
-*Starting a mongoDB server:<br/>
-$mongod<br/>
-*Dropping DB:<br/>
-$db.dropDatabase()
-
+Running Falcon:<br/>
+*To run normally:<br/>
+    $ gunicorn falcon_server<br/>
+*Run with the below options, since localization takes some time<br/>
+    $gunicorn -t 3600 --access-logfile - falcon_server<br/>
+**************************
+To run the client:<br/>
+    $python3 client.py<br/>
 ******************
-To run the client:
-******************
-
-$python3 client.py <K> <T> <SD>
+Notes:<br/>
+*To change configuration for the project like K, Number of transmitters, Number of blocks, etc. refer utils.py script<br/>
+******
